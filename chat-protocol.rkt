@@ -7,11 +7,18 @@
          CMD_SIGNOUT
          CMD_SEND
          EOM
+         ERR_PROTO_VERSION
+         ERR_UNKNOWN_CMD
+         ERR_USER_TAKEN
+         RET_OK
          make-header
          get-header
          get-proto-version
          get-command
          read-message
+         read-header
+         write-message
+         write-header
          version-match?)
 
 (define VERSION 1)          ; Protocol version used in the server
@@ -20,7 +27,7 @@
 (define HEADER_SIZE 4)      ; Size in bytes of the message header
 (define VERSION_BYTE 0)     ; Byte 0 contains protocol version number
 (define CODE_BYTE 1)        ; This field contains server commands in requests
-                            ; or return codes from the server to the client in responses
+; or return codes from the server to the client in responses
 
 ; Server commands in requests to the server
 (define CMD_SIGNIN  0)      ; Start a new session
@@ -30,12 +37,14 @@
 ; Server return codes from the server to the client
 ; On error, message bodies are empty
 (define RET_OK 0)           ; Everything went fine
-(define RET_USER_TAKEN 1)   ; Nickname was already taken
-(define RET_NO_ROOM 2)      ; Too many clients
+(define ERR_USER_TAKEN 1)   ; Nickname was already taken
+(define ERR_NO_ROOM 2)      ; Too many clients
+(define ERR_PROTO_VERSION 3); Invalid protocol version
+(define ERR_UNKNOWN_CMD 4)      ; Unknown error
 
 (define EOM 0)              ; NULL Byte means end of message.
-                            ; Note that the header can still contain null-bytes.
- 
+; Note that the header can still contain null-bytes.
+
 (define CHUNK_SIZE 128)     ; size in bytes of the input chunks
 
 ; Get the header of the message
@@ -44,7 +53,6 @@
   )
 
 ; Extract information from the header
-
 (define (get-proto-version header)
   (bytes-ref header VERSION_BYTE)
   )
@@ -58,7 +66,7 @@
   (= (get-proto-version header) VERSION)
   )
 
-; Make the header of the message
+; Header
 (define (make-header code)
   (let ((header (make-bytes HEADER_SIZE 0)))
     (begin
@@ -69,19 +77,37 @@
     )
   )
 
+(define (write-header code out)
+  (begin
+    (write-bytes (make-header code) out)
+    )
+  )
+
+; Message
 (define (read-message in)
   (let ((out (open-output-bytes)))
     (define (reader)
       (let ((head (peek-byte in)))
-        (if (not (or (= head EOM) (eof-object? head)))
+        (if (not (or (eof-object? head) (= head EOM)))
           (begin
             (write-bytes (read-bytes CHUNK_SIZE in) out)
             (reader)
             )
-          (bytes->string/utf-8 out)
+          (bytes->string/utf-8 (get-output-bytes out))
           )
         )
       )
     (reader)
+    )
+  )
+
+(define (read-header in)
+  (read-bytes HEADER_SIZE in)
+  )
+
+(define (write-message msg out)
+  (begin
+    (write-bytes (string->bytes/utf-8 msg) out)
+    (write-byte EOM out)
     )
   )

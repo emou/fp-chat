@@ -2,6 +2,14 @@
 #lang racket
 
 (require "chat-protocol.rkt")
+(require "lib/logging.rkt")
+
+; These should be configurable
+(define HOSTNAME "localhost")
+(define PORT 8081)
+(define USERNAME "emou")
+
+(define client-logger (make-logger 'client))
 
 (define (client hostname port)
 
@@ -10,18 +18,24 @@
     (display message out)
     )
 
+  ; Send a request and read the response.
   (define (communicate in out cmd msg)
-    (write-bytes (make-header cmd) out)
-    (write-bytes (string->bytes/utf-8 msg) out)
-    (values (read-bytes HEADER_SIZE in)
-            (read-message in))
+    (begin
+      (write-header cmd out)
+      (write-message msg out)
+      (values (read-header in)
+              (read-message in))
+      )
     )
 
   (define (signin in out username)
     (let-values ([(header msg) (communicate in out CMD_SIGNIN username)])
                 (begin
-                  (display "Server response header: ")
-                  (display header)
+                  (info-message
+                    (string-append
+                      "Server response header: " header "\n"
+                      "Server response message: " msg "\n")
+                    )
                   )
                 )
     )
@@ -35,19 +49,16 @@
     )
 
   (define (connect)
-    (define-values (in out)
-                   (tcp-connect hostname port))
-    (values (in out))
+    (let-values ([(in out) (tcp-connect hostname port)])
+                ; Turn off port buffering for the output port
+                (file-stream-buffer-mode out 'none)
+                (values in out)
+                )
     )
 
-  (define-values (in out)
-                 (connect))
-                 (signin USERNAME)
+  (let-values ([(in out) (connect)])
+              (signin in out USERNAME)
+              )
   )
-
-; These should be configurable
-(define HOSTNAME "localhost")
-(define PORT 8081)
-(define USERNAME "emou")
 
 (client HOSTNAME PORT)
