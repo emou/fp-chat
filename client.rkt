@@ -37,8 +37,8 @@
     (communicate in out CMD_SIGNOUT username)
     )
 
-  (define (send in out)
-    (communicate in out CMD_SEND "A test message!")
+  (define (send in out msg)
+    (communicate in out CMD_SEND msg)
     )
 
   (define (connect)
@@ -54,6 +54,7 @@
                 (signout in out USERNAME)
                 (signout in out USERNAME)
                 (signin in out USERNAME)
+                (send in out "A test message")
                 (signout in out USERNAME)
                 )
               )
