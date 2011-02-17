@@ -1,5 +1,4 @@
 #lang racket
-(require "lib/util.rkt")
 (provide HEADER_SIZE
          VERSION_BYTE
          CODE_BYTE
