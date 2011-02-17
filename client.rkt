@@ -23,6 +23,7 @@
     (begin
       (write-header cmd out)
       (write-message msg out)
+      (debug-message "Request sent. Reading response...")
       (values (read-header in)
               (read-message in))
       )
@@ -33,7 +34,7 @@
                 (begin
                   (info-message
                     (string-append
-                      "Server response header: " header "\n"
+                      "Server response header: " (bytes->string/utf-8 header) "\n"
                       "Server response message: " msg "\n")
                     )
                   )
@@ -50,7 +51,7 @@
 
   (define (connect)
     (let-values ([(in out) (tcp-connect hostname port)])
-                ; Turn off port buffering for the output port
+                ; Turn off port buffering
                 (file-stream-buffer-mode out 'none)
                 (values in out)
                 )

@@ -1,4 +1,5 @@
 #lang racket
+(require "lib/util.rkt")
 (provide HEADER_SIZE
          VERSION_BYTE
          CODE_BYTE
@@ -42,7 +43,7 @@
 (define ERR_PROTO_VERSION 3); Invalid protocol version
 (define ERR_UNKNOWN_CMD 4)      ; Unknown error
 
-(define EOM 0)              ; NULL Byte means end of message.
+(define EOM #\return)           ; \r means end of message.
 ; Note that the header can still contain null-bytes.
 
 (define CHUNK_SIZE 128)     ; size in bytes of the input chunks
@@ -85,19 +86,10 @@
 
 ; Message
 (define (read-message in)
-  (let ((out (open-output-bytes)))
-    (define (reader)
-      (let ((head (peek-byte in)))
-        (if (not (or (eof-object? head) (= head EOM)))
-          (begin
-            (write-bytes (read-bytes CHUNK_SIZE in) out)
-            (reader)
-            )
-          (bytes->string/utf-8 (get-output-bytes out))
-          )
-        )
-      )
-    (reader)
+  (let ([buff (read-bytes-line in 'return)])
+    (if (eof-object? buff)
+      #f
+      (bytes->string/utf-8 buff))
     )
   )
 
@@ -108,6 +100,6 @@
 (define (write-message msg out)
   (begin
     (write-bytes (string->bytes/utf-8 msg) out)
-    (write-byte EOM out)
+    (write-char EOM out)
     )
   )

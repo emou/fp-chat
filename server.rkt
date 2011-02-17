@@ -36,6 +36,7 @@
     (define-values (in out)
                    (tcp-accept listener))
     (thread (lambda ()
+              (file-stream-buffer-mode out 'none)
               (communicate in out)
               (close-input-port in)
               (close-output-port out)
@@ -66,9 +67,13 @@
           (msg (read-message in)) ; Don't move this down!
           )
       (if worker
-        (let-values ([(resp-hdr resp-msg ) (worker msg in out)])
+        (let-values ([(resp-hdr resp-msg) (worker msg in out)])
+                    (debug-message "Writing header...")
                     (write-header resp-hdr out)
+                    (debug-message "Header written.")
+                    (debug-message "Writing message...")
                     (write-message resp-msg out)
+                    (debug-message "Message written.")
                     (debug-message (string-append "Server response: " resp-msg))
                     )
         (error-out ERR_UNKNOWN_CMD "Invalid command found in request. Ignoring." out)
@@ -77,17 +82,17 @@
     )
 
   (define (signin username in out)
-    (info-message (string-append "Trying to sign in user " username "."))
-    ; Not thread-safe...
-    (if (hash-has-key? users username)
-      (values ERR_USER_TAKEN (string-append "Username " username " is already taken."))
-      (begin
-        (hash-set! users username (cons in out))
-        (info-message (string-append "User " username " signed in succesfully."))
-        (info-message (string-append "Currently " (number->string (hash-count users)) " users are logged in."))
-        (values RET_OK "Signin sucessful.")
+      (info-message (string-append "Trying to sign in user " username "."))
+      ; Not thread-safe...
+      (if (hash-has-key? users username)
+        (values ERR_USER_TAKEN (string-append "Username " username " is already taken."))
+        (begin
+          (hash-set! users username (cons in out))
+          (info-message (string-append "User " username " signed in succesfully."))
+          (info-message (string-append "Currently " (number->string (hash-count users)) " users are logged in."))
+          (values RET_OK "Signin sucessful.")
+          )
         )
-      )
     )
 
   (define (signout in out)
