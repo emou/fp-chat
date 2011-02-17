@@ -14,8 +14,8 @@
 (define (client hostname port)
 
   (define (error-out message out)
-    (display "Client error: " out)
-    (display message out)
+    (error-message "Client error: " out)
+    (error-message message out)
     )
 
   ; Send a request and read the response.
@@ -30,23 +30,15 @@
     )
 
   (define (signin in out username)
-    (let-values ([(header msg) (communicate in out CMD_SIGNIN username)])
-                (begin
-                  (info-message
-                    (string-append
-                      "Server response header: " (bytes->string/utf-8 header) "\n"
-                      "Server response message: " msg "\n")
-                    )
-                  )
-                )
+    (communicate in out CMD_SIGNIN username)
     )
 
-  (define (signout in out)
-    (display "Signout called")
+  (define (signout in out username)
+    (communicate in out CMD_SIGNOUT username)
     )
 
   (define (send in out)
-    (display "Send called")
+    (communicate in out CMD_SEND "A test message!")
     )
 
   (define (connect)
@@ -58,7 +50,12 @@
     )
 
   (let-values ([(in out) (connect)])
-              (signin in out USERNAME)
+              (begin
+                (signout in out USERNAME)
+                (signout in out USERNAME)
+                (signin in out USERNAME)
+                (signout in out USERNAME)
+                )
               )
   )
 

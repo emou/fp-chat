@@ -13,7 +13,16 @@
 (define MAX-CLIENTS 30) ; maximum number of clients waiting
 
 (define (server port)
-  (define users (make-hash '())) ; map users to their corresponding sockets
+
+  (define users (make-hash '()))   ; map users to sockets: easy check if user is signed in
+
+  ; Other methods should use this interface to the user storage
+  (define (add-user! username in out)
+    (hash-set! users username (cons in out))
+    )
+  (define (unregister-user! username)
+    (and (hash-has-key? users username) (hash-remove! users username))
+    )
 
   (define (error-out errcode message out)
     (begin
@@ -45,13 +54,23 @@
     )
 
   (define (communicate in out)
+    ; Thread-local storage for the username
+    (define user (make-thread-cell null))
+
     (let ((header (get-header in)))
-      (display header)
-      (if (version-match? header)
-        (command (get-command header) in out)
-        (error-out ERR_PROTO_VERSION "Invalid protocol version." out)
-        )
-      )
+      (cond
+          [(eof-object? header)
+           (unregister-user! (thread-cell-ref user))]
+
+         [(not (version-match? header))
+          (error-out ERR_PROTO_VERSION "Invalid protocol version." out)]
+
+         [else
+           (begin
+             (command (get-command header) in out)
+             (communicate in out)
+             )])
+    )
     )
 
   (define (find-command cmd)
@@ -82,21 +101,30 @@
     )
 
   (define (signin username in out)
-      (info-message (string-append "Trying to sign in user " username "."))
-      ; Not thread-safe...
-      (if (hash-has-key? users username)
-        (values ERR_USER_TAKEN (string-append "Username " username " is already taken."))
-        (begin
-          (hash-set! users username (cons in out))
-          (info-message (string-append "User " username " signed in succesfully."))
-          (info-message (string-append "Currently " (number->string (hash-count users)) " users are logged in."))
-          (values RET_OK "Signin sucessful.")
-          )
+    (info-message (string-append "Trying to sign in user " username "."))
+    ; Not thread-safe...
+    (if (hash-has-key? users username)
+      (values ERR_USER_TAKEN (string-append "Username " username " is already taken."))
+      (begin
+        (add-user! username in out)
+        (info-message (string-append "User " username " signed in succesfully."))
+        (info-message (string-append "Currently " (number->string (hash-count users)) " users are logged in."))
+        (values RET_OK "Signin successful.")
         )
+      )
     )
 
-  (define (signout in out)
-    (display "Signout called")
+  (define (signout username in out)
+    (info-message (string-append "Trying to sign out user " username "."))
+    (if (not (hash-has-key? users username))
+      (values ERR_UNKNOWN_USER (string-append username " is not signed in."))
+      (begin
+        (unregister-user! username)
+        (info-message (string-append "User " username " signed out in succesfully."))
+        (info-message (string-append "Currently " (number->string (hash-count users)) " users are logged in."))
+        (values RET_OK "Signout successful.")
+        )
+      )
     )
 
   (define (send in out)

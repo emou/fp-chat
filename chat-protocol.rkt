@@ -11,6 +11,7 @@
          ERR_PROTO_VERSION
          ERR_UNKNOWN_CMD
          ERR_USER_TAKEN
+         ERR_UNKNOWN_USER
          RET_OK
          make-header
          get-header
@@ -41,7 +42,8 @@
 (define ERR_USER_TAKEN 1)   ; Nickname was already taken
 (define ERR_NO_ROOM 2)      ; Too many clients
 (define ERR_PROTO_VERSION 3); Invalid protocol version
-(define ERR_UNKNOWN_CMD 4)      ; Unknown error
+(define ERR_UNKNOWN_CMD 4)  ; Unknown error
+(define ERR_UNKNOWN_USER 5) ; No such user is currently logged in
 
 (define EOM #\return)           ; \r means end of message.
 ; Note that the header can still contain null-bytes.
