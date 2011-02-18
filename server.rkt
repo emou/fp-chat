@@ -32,6 +32,9 @@
   (define (register-thread! t)
     (set-add user-threads t)
     )
+  (define (unregister-thread! t)
+    (set-remove user-threads t)
+    )
 
   ; Broadcast the message
   (define (add-message! msg)
@@ -62,6 +65,8 @@
               (register-thread! (current-thread))
               (file-stream-buffer-mode out 'none)
               (communicate in out)
+              ("Connection ended. Removing thread...")
+              (unregister-thread! (current-thread))
               (close-input-port in)
               (close-output-port out)
               )
@@ -70,7 +75,7 @@
 
   (define (communicate in out)
     (define-values (get-user set-user!)
-                   (let ((user '())) ; Initially, no user is associated with this connection
+                   (let ((user null)) ; Initially, no user is associated with this connection
                      (define (get) user)
                      (define (set username) (set! user username))
                      (values get set)

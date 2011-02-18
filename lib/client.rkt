@@ -1,16 +1,11 @@
-; Chat client.
 #lang racket
+; Chat client library.
 (provide 
   client%
   )
 
 (require "chat-protocol.rkt")
 (require "logging.rkt")
-
-; These should be configurable
-(define HOSTNAME "localhost")
-(define PORT 8081)
-(define USERNAME "emou")
 
 (define client%
   (class object%

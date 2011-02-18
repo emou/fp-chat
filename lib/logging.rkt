@@ -1,4 +1,6 @@
 #lang racket
+; Module which provides logging primitives.
+
 (require racket/date)
 
 (provide debug-message

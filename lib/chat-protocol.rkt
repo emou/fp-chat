@@ -1,4 +1,6 @@
 #lang racket
+; This modules holds the details for the chat protocol
+; and functions which know how to make packets.
 (provide HEADER_SIZE
          VERSION_BYTE
          CODE_BYTE
