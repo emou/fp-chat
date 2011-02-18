@@ -14,6 +14,16 @@
 (define mainwindow (new frame% [label APP_NAME]))
 (define client null)
 
+; Establishes a new connection to the server
+(define (new-connection host port username)
+  (let ([client (new client% [host host] [port port])])
+    (send client connect)
+    (send client signin username)
+    (send mainwindow show #t)
+    (send mainwindow set-label
+          (string-append "Connected to "
+                         host ":" (number->string port) " as " username))))
+
 ; =======================================
 ; Field validations.
 ; =======================================
@@ -39,15 +49,14 @@
   (string-append APP_NAME " - " label)
   )
 
-; Establishes a new connection to the server
-(define (new-connection host port username)
-  (let ([client (new client% [host host] [port port])])
-    (send client connect)
-    (send client signin username)
-    (send mainwindow show #t)
-    (send mainwindow set-label
-          (string-append "Connected to "
-                         host ":" (number->string port) " as " username))))
+; =======================================
+; Error handling. Should pop up a dialog
+; in the future?
+; =======================================
+(define (handle-error err)
+   (send (new dialog% [label "Error"]) show #t)
+   (debug-message err) 
+)
 
 ; =======================================
 ; Main Window.
@@ -57,19 +66,39 @@
 ; =======================================
 ; Connection dialog.
 ; =======================================
-(define connect-dialog (new dialog% [parent frame] [label (t "Connect to server")]))
-(define host-field (new text-field% [parent connect-dialog] [label "Host"]))
-(define port-field (new text-field% [parent connect-dialog] [label "Port"]))
-(define username-field (new text-field% [parent connect-dialog] [label "Username"]))
-(define panel (new horizontal-panel% [parent connect-dialog] [alignment '(center center)]))
+(define connect-dialog (new dialog%
+                            [parent frame]
+                            [label (t "Connect to server")]))
+
+; =======================================
+; Fields in the connection dialog.
+; =======================================
+(define host-field (new text-field%
+                        [parent connect-dialog]
+                        [label "Host"]))
+
+(define port-field (new text-field%
+                        [parent connect-dialog]
+                        [label "Port"]))
+
+(define username-field (new text-field%
+                            [parent connect-dialog]
+                            [label "Username"]))
+
+(define panel (new horizontal-panel%
+                   [parent connect-dialog]
+                   [alignment '(center center)]))
+
+; =======================================
+; The "Connect" button.
+; =======================================
 (new button% [parent connect-dialog]
              [label "Connect"]
      (callback (lambda (button event)
-                 (with-handlers ([validation-error? (lambda (e) (debug-message e))])
+                 (with-handlers ([validation-error? handle-error] [(lambda (e) #t) handle-error])
                                 (let-values ([(host port username) (clean-connection-parameters
                                                                (send host-field get-value)
                                                                (send port-field get-value)
                                                                (send username-field get-value))])
                                             (new-connection host port username))))))
-
 (send connect-dialog show #t)
