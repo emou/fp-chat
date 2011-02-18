@@ -8,6 +8,8 @@
          CMD_SIGNIN
          CMD_SIGNOUT
          CMD_SEND
+         CMD_GET_USER_LIST
+         DEFAULT_PORT
          EOM
          ERR_PROTO_VERSION
          ERR_UNKNOWN_CMD
@@ -15,16 +17,20 @@
          ERR_UNKNOWN_USER
          RET_OK
          PUSH_MSG
+         SEP
          make-header
          get-header
          get-proto-version
          get-command
+         get-retcode
          read-message
          read-header
+         split-message
          write-message
          write-header
          version-match?)
 
+(define DEFAULT_PORT 8081)
 (define VERSION 1)          ; Protocol version used in the server
 
 ; Request header
@@ -37,6 +43,7 @@
 (define CMD_SIGNIN  0)      ; Start a new session
 (define CMD_SIGNOUT 1)      ; Quit the chat
 (define CMD_SEND    2)      ; Send a message
+(define CMD_GET_USER_LIST    3)      ; Send a message
 
 ; Server return codes from the server to the client
 ; On error, message bodies are empty
@@ -49,6 +56,10 @@
 (define ERR_UNKNOWN_USER 6) ; No such user is currently logged in
 
 (define EOM #\return)           ; \r means end of message.
+(define SEP #\:)                ; A separator used in messages. Should not be allowed in user input.
+(define (split-message msg)
+  (regexp-split (regexp (string SEP)) msg))
+
 ; Note that the header can still contain null-bytes.
 
 (define CHUNK_SIZE 128)     ; size in bytes of the input chunks
@@ -66,6 +77,7 @@
 (define (get-command header)
   (bytes-ref header CODE_BYTE)
   )
+(define get-retcode get-command)
 
 ; Checks if the request protocol version matches the server
 (define (version-match? header)

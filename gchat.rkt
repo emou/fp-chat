@@ -5,20 +5,44 @@
 (require "lib/logging.rkt")
 (require "lib/validation.rkt")
 (require "lib/utils.rkt")
+(require "lib/chat-protocol.rkt")
 
 (define APP_NAME "GChat")
+(define DEFAULT_HOST "localhost")
 
 ; =======================================
 ; Global state. Yeah, ugly.
 ; =======================================
-(define mainwindow (new frame% [label APP_NAME]))
+(define mainwindow (new frame%
+                        [label APP_NAME]
+                        [width 600]
+                        [height 400]
+                        [min-width 200]
+                        [min-height 200]
+                        ))
 (define client null)
+(define users '())
+
+; Sets and get the list of users
+(define (set-users! lst)
+(debug-message (string-append "Refreshing list of users to"
+                              "(" (string-join lst ", ") ")..."))
+  (let ([new-users (set)])
+    (for-each (lambda (u) (set! new-users (set-add new-users u))) lst)
+    (set! users new-users)))
+
+(define (get-users) users)
 
 ; Establishes a new connection to the server
 (define (new-connection host port username)
-  (let ([client (new client% [host host] [port port])])
+  (let ([client (new client%
+                     [host host]
+                     [port port])])
     (send client connect)
     (send client signin username)
+    (let ([new-users (send client get-users-list)])
+      (set-users! new-users))
+    (send connect-dialog show #f)
     (send mainwindow show #t)
     (send mainwindow set-label
           (string-append "Connected to "
@@ -81,10 +105,12 @@
 (define host-field (new text-field%
                         [parent connect-dialog]
                         [label "Host"]))
+(send host-field set-value DEFAULT_HOST)
 
 (define port-field (new text-field%
                         [parent connect-dialog]
                         [label "Port"]))
+(send port-field set-value (number->string DEFAULT_PORT))
 
 (define username-field (new text-field%
                             [parent connect-dialog]
@@ -103,4 +129,6 @@
                                                                (send port-field get-value)
                                                                (send username-field get-value))])
                                             (new-connection host port username))))))
+
+; Show the connect dialog at the beginning
 (send connect-dialog show #t)

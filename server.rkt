@@ -9,10 +9,10 @@
 
 ; Constants
 ; XXX: Make these configurable on the command line.
-(define HOSTNAME #f)    ; bind to all interfaces
-(define PORT 8081)      ; bind to this port
-(define REUSE-PORT #t)  ; for debugging
-(define MAX-CLIENTS 30) ; maximum number of clients waiting
+(define HOSTNAME #f)            ; bind to all interfaces
+(define PORT DEFAULT_PORT)      ; bind to this port
+(define REUSE-PORT #t)          ; for debugging
+(define MAX-CLIENTS 30)         ; maximum number of clients waiting
 
 (define (server port)
 
@@ -65,7 +65,7 @@
               (register-thread! (current-thread))
               (file-stream-buffer-mode out 'none)
               (communicate in out)
-              ("Connection ended. Removing thread...")
+              (debug-message "Connection ended. Removing thread...")
               (unregister-thread! (current-thread))
               (close-input-port in)
               (close-output-port out)
@@ -130,6 +130,11 @@
           )
         )
       )
+    
+    ; Command that sends the list of currently logged in users, separated by newlines, to the client
+    (define (userlist msg in out)
+      (values RET_OK (string-join (hash-map users (lambda (u _) u)) ":"))
+      )
 
     ; Command that send a message. This is the most important one.
     (define (send msg in out)
@@ -139,10 +144,11 @@
 
     ; Command dispatcher
     (define (find-command cmd)
-      (cond ((= cmd CMD_SIGNIN)   signin      )
-            ((= cmd CMD_SIGNOUT)  signout     )
-            ((= cmd CMD_SEND)     send        )
-            (else                 #f          )
+      (cond ((= cmd CMD_SIGNIN)            signin      )
+            ((= cmd CMD_SIGNOUT)           signout     )
+            ((= cmd CMD_SEND)              send        )
+            ((= cmd CMD_GET_USER_LIST)     userlist    )
+            (else                          #f          )
             )
       )
 
