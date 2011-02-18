@@ -1,5 +1,8 @@
 ; Chat client.
 #lang racket
+(provide 
+  client%
+  )
 
 (require "chat-protocol.rkt")
 (require "lib/logging.rkt")
@@ -62,8 +65,3 @@
 
          )
   )
-
-  (let ([client (new client% [host HOSTNAME] [port PORT])])
-    (send client connect)
-    (send client signin "emou")
-    )
