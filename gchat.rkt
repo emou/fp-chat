@@ -48,8 +48,10 @@
 
 ; Send messages to other users
 (define (handle-messages)
+  (debug-message "Trying to send a message for broadcast...")
   (let ([instruction (thread-try-receive)])
-    (and instruction (send client command (cons instruction) (cdr instruction)))
+    (and instruction (send client command (car instruction) (cdr instruction)))
+    (debug-message (string-append "Sent a broadcast message " (cdr instruction)))
     (listen-loop)
     )
   )
@@ -109,6 +111,14 @@
           (string-append "Connected to "
                          host ":" (number->string port) " as " username))))
 
+(define (textbox-changed t e)
+  (and (eq? (send e get-event-type) 'text-field-enter)
+       (let ([msg (send t get-value)])
+         ; Queue the message for sending
+         (thread-send listening-thread (cons CMD_SEND msg))
+         ; Clear the textbox
+         (send t set-value ""))))
+
 (define (connection-closed)
     (define msg ("The server has closed the connection."))
     (message-box (t msg))
@@ -161,11 +171,20 @@
                         [min-width 200]
                         [min-height 200]
                         ))
+
+; The box that holds the logged in users
 (define users-list-box (new list-box%
                             [parent main-win]
                             [choices (get-users)]
                             [label "List of users"]
                             ))
+
+(define textbox (new text-field%
+                     [parent main-win]
+                     [label "Send a message:"]
+                     [callback textbox-changed]
+                            ))
+
 ; =======================================
 ; Connection dialog.
 ; =======================================

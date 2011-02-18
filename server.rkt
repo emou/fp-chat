@@ -135,11 +135,16 @@
       (values RET_OK (string-join (hash-map users (lambda (u _) u)) ":"))
       )
 
-    ; Command that send a message. This is the most important one.
+    ; Command that queues a message for sending. This is the most important one.
     (define (send msg in out)
-      (add-message! (string-append "User " (get-user) " says: " msg))
-      (values RET_OK "Message delivered.")
+      (add-message! PUSH_MSG (string-append "User " (get-user) " says: " msg))
+      (values RET_OK "Message sent (but not delivered yet!)")
       )
+
+    (define (push-message msg in out)
+        (values PUSH_MSG msg)
+      )
+
 
     ; Command dispatcher
     (define (find-command cmd)
@@ -147,12 +152,14 @@
             ((= cmd CMD_SIGNOUT)           signout     )
             ((= cmd CMD_SEND)              send        )
             ((= cmd CMD_GET_USER_LIST)     userlist    )
+            ((= cmd PUSH_MSG)              push-message)
             (else                          #f          )
             )
       )
 
     ; Loop till connection is closed
     (define (communicate-loop)
+      (debug-message "Starting communicate-loop")
       ; Wait for messages or for client input
       (let* ([msg-evt (thread-receive-evt)]
              [ready (sync msg-evt in)])
@@ -165,14 +172,16 @@
 
     ; Send messages from other users to the client
     (define (handle-messages)
+      (debug-message (string-append "Broadcasting message..."))
       (let ([instruction (thread-try-receive)])
-        (and instruction (command (cons instruction) (cdr instruction)))
+        (and instruction (command (car instruction) (cdr instruction)))
         (communicate-loop)
         )
       )
 
     ; Handle requests by the client
     (define (handle-input in)
+      (debug-message "Handling input...")
       (let ([header (get-header in)])
         (cond
           [(eof-object? header)
