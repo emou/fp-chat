@@ -1,5 +1,5 @@
 ; Chat server.
-; XXX: Server should be a class!
+; XXX: Server should be a class!?
 #lang racket
 
 (require racket/date)

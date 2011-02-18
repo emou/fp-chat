@@ -21,4 +21,3 @@
 (define (validate val pred? errmsg)
     (or (and (pred? val) val) (raise-validation-error errmsg))
 )
-

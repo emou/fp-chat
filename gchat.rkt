@@ -54,9 +54,9 @@
 ; in the future?
 ; =======================================
 (define (handle-error err)
-   (send (new dialog% [label "Error"]) show #t)
-   (debug-message err) 
-)
+  (message-box (t "Error") (exn-message err))
+  (debug-message err) 
+  )
 
 ; =======================================
 ; Main Window.
@@ -69,6 +69,11 @@
 (define connect-dialog (new dialog%
                             [parent frame]
                             [label (t "Connect to server")]))
+
+; Alignment
+(define panel (new horizontal-panel%
+                   [parent connect-dialog]
+                   [alignment '(center center)]))
 
 ; =======================================
 ; Fields in the connection dialog.
@@ -85,16 +90,13 @@
                             [parent connect-dialog]
                             [label "Username"]))
 
-(define panel (new horizontal-panel%
-                   [parent connect-dialog]
-                   [alignment '(center center)]))
-
 ; =======================================
 ; The "Connect" button.
 ; =======================================
 (new button% [parent connect-dialog]
              [label "Connect"]
      (callback (lambda (button event)
+                 ; XXX: handle errors better?
                  (with-handlers ([validation-error? handle-error] [(lambda (e) #t) handle-error])
                                 (let-values ([(host port username) (clean-connection-parameters
                                                                (send host-field get-value)
