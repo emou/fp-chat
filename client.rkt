@@ -9,55 +9,61 @@
 (define PORT 8081)
 (define USERNAME "emou")
 
-(define client-logger (make-logger 'client))
+(define client%
+  (class object%
+         (init host port)
+         (define (get-host) host)
+         (define (get-port) port)
+         (define in null)
+         (define out null)
 
-(define (client hostname port)
+         (super-new)
 
-  (define (error-out message out)
-    (error-message "Client error: " out)
-    (error-message message out)
-    )
+         (define/public (connect)
+                        (let-values ([(i o) (tcp-connect (get-host) (get-port))])
+                                    ; Turn off port buffering
+                                    (file-stream-buffer-mode o 'none)
+                                    (set! in i)
+                                    (set! out o)
+                                    )
+                        )
 
-  ; Send a request and read the response.
-  (define (communicate in out cmd msg)
-    (begin
-      (write-header cmd out)
-      (write-message msg out)
-      (debug-message "Request sent. Reading response...")
-      (values (read-header in)
-              (read-message in))
-      )
-    )
+         (define/public (error-out message)
+           (error-message "Client error: ")
+           (error-message message)
+           )
 
-  (define (signin in out username)
-    (communicate in out CMD_SIGNIN username)
-    )
+         (define (command cmd msg)
+           (begin
+             (write-header cmd out)
+             (write-message msg out)
+             (debug-message "Request sent. Reading response...")
+             (values (read-header in)
+                     (read-message in))
+             )
+           )
 
-  (define (signout in out username)
-    (communicate in out CMD_SIGNOUT username)
-    )
+         (define/public (recieve-message)
+           #f
+           )
 
-  (define (send in out msg)
-    (communicate in out CMD_SEND msg)
-    )
+         ; Sign in / out of chat
+         (define/public (signin username)
+           (command CMD_SIGNIN username)
+           )
+         (define/public (signout username)
+           (command CMD_SIGNOUT username)
+           )
 
-  (define (connect)
-    (let-values ([(in out) (tcp-connect hostname port)])
-                ; Turn off port buffering
-                (file-stream-buffer-mode out 'none)
-                (values in out)
-                )
-    )
+         ; Send messages to the chat
+         (define/public (send in out msg)
+           (command CMD_SEND msg)
+           )
 
-  (let-values ([(in out) (connect)])
-              (begin
-                (signout in out USERNAME)
-                (signout in out USERNAME)
-                (signin in out USERNAME)
-                (send in out "A test message")
-                (signout in out USERNAME)
-                )
-              )
+         )
   )
 
-(client HOSTNAME PORT)
+  (let ([client (new client% [host HOSTNAME] [port PORT])])
+    (send client connect)
+    (send client signin "emou")
+    )

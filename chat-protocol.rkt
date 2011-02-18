@@ -12,6 +12,7 @@
          ERR_USER_TAKEN
          ERR_UNKNOWN_USER
          RET_OK
+         PUSH_MSG
          make-header
          get-header
          get-proto-version
@@ -38,11 +39,12 @@
 ; Server return codes from the server to the client
 ; On error, message bodies are empty
 (define RET_OK 0)           ; Everything went fine
-(define ERR_USER_TAKEN 1)   ; Nickname was already taken
-(define ERR_NO_ROOM 2)      ; Too many clients
-(define ERR_PROTO_VERSION 3); Invalid protocol version
-(define ERR_UNKNOWN_CMD 4)  ; Unknown error
-(define ERR_UNKNOWN_USER 5) ; No such user is currently logged in
+(define PUSH_MSG 1)         ; The server wants to send us a message
+(define ERR_USER_TAKEN 2)   ; Nickname was already taken
+(define ERR_NO_ROOM 3)      ; Too many clients
+(define ERR_PROTO_VERSION 4); Invalid protocol version
+(define ERR_UNKNOWN_CMD 5)  ; Unknown error
+(define ERR_UNKNOWN_USER 6) ; No such user is currently logged in
 
 (define EOM #\return)           ; \r means end of message.
 ; Note that the header can still contain null-bytes.

@@ -1,4 +1,5 @@
 ; Chat server.
+; XXX: Server should be a class!
 #lang racket
 
 (require racket/date)
@@ -7,6 +8,7 @@
 (require "lib/logging.rkt")
 
 ; Constants
+; XXX: Make these configurable on the command line.
 (define HOSTNAME #f)    ; bind to all interfaces
 (define PORT 8081)      ; bind to this port
 (define REUSE-PORT #t)  ; for debugging
@@ -26,15 +28,15 @@
     )
   (define (user-exists? username)
     (hash-has-key? users username) 
-  )
+    )
   (define (register-thread! t)
     (set-add user-threads t)
-  )
+    )
 
   ; Broadcast the message
   (define (add-message! msg)
     (set-for-each user-threads (lambda (t) (thread-send t msg)))
-  )
+    )
 
   (define (error-out errcode message out)
     (begin
@@ -83,8 +85,7 @@
           (let-values ([(resp-hdr resp-msg) (worker msg in out)])
                       (debug-message "Writing header...")
                       (write-header resp-hdr out)
-                      (debug-message "Header written.")
-                      (debug-message "Writing message...")
+                      (debug-message "Header written. Writing message...")
                       (write-message resp-msg out)
                       (debug-message "Message written.")
                       (debug-message (string-append "Server response: " resp-msg))
@@ -124,7 +125,7 @@
           )
         )
       )
-    
+
     ; Command that send a message. This is the most important one.
     (define (send msg in out)
       (add-message! (string-append "User " (get-user) " says: " msg))
@@ -142,7 +143,31 @@
 
     ; Loop till connection is closed
     (define (communicate-loop)
-      (let ((header (get-header in)))
+      ; Wait for messages or for client input
+      (let* ([msg-evt (thread-receive-evt)]
+             [ready (sync msg-evt in)])
+        (if (eq? ready msg-evt)
+          (handle-messages ready)
+          (handle-input ready)
+          )
+        )
+      )
+
+    ; Send messages from other users to the client
+    (define (handle-messages evt)
+      (let ([msg (thread-try-receive)])
+        (and msg (begin
+                   (write-header PUSH_MSG out)
+                   (write-message msg out)
+                   )
+             )
+        (communicate-loop)
+        )
+      )
+
+    ; Handle requests by the client
+    (define (handle-input in)
+      (let ([header (get-header in)])
         (cond
           [(eof-object? header)
            (unregister-user! (get-user))]
