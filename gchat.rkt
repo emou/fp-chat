@@ -1,4 +1,4 @@
-; A GUI chat client
+; A GUI for the chat client
 ; Run with gracket!
 #lang racket/gui
 (require "lib/client.rkt")
@@ -13,40 +13,109 @@
 ; =======================================
 ; Global state. Yeah, ugly.
 ; =======================================
-(define mainwindow (new frame%
-                        [label APP_NAME]
-                        [width 600]
-                        [height 400]
-                        [min-width 200]
-                        [min-height 200]
-                        ))
 (define client null)
 (define users '())
+(define listening-thread null)
 
 ; Sets and get the list of users
 (define (set-users! lst)
-(debug-message (string-append "Refreshing list of users to"
-                              "(" (string-join lst ", ") ")..."))
-  (let ([new-users (set)])
-    (for-each (lambda (u) (set! new-users (set-add new-users u))) lst)
-    (set! users new-users)))
+  (debug-message (string-append "Refreshing list of users to "
+                                "(" (string-join lst ", ") ")..."))
+  (set! users lst)
+  (send users-list-box set users)
+  )
 
 (define (get-users) users)
 
-; Establishes a new connection to the server
+; The body of the worker thread.
+; XXX: This is similar as on the server side. Extract it somewhere!?
+(define (listen-loop)
+  (let (; the sunshine
+        [in (send client get-input-port)])
+    (define (loop)
+      ; Wait for messages or for client input
+      (let* ([msg-evt (thread-receive-evt)]
+             [ready (sync msg-evt in)])
+        (if (eq? ready msg-evt)
+          (handle-messages)
+          (handle-input ready)
+          )
+        )
+      )
+    (loop)
+    )
+  )
+
+; Send messages to other users
+(define (handle-messages)
+  (let ([instruction (thread-try-receive)])
+    (and instruction (send client command (cons instruction) (cdr instruction)))
+    (listen-loop)
+    )
+  )
+
+; Handle server messages
+(define (handle-input in)
+  (let ([header (get-header in)])
+    (cond
+      [(eof-object? header)
+       (connection-closed)]
+
+      [else
+        (begin
+          (handle-push (get-command header) (read-message in))
+          (listen-loop)
+          )])
+    )
+  )
+
+(define (handle-push cmd msg)
+  (let ([handler (find-push-handler cmd)])
+    (if handler
+      (handler cmd msg)
+      (debug-message (string-append "Unknown push command "
+                                    (number->string cmd) " with message "
+                                    msg " recieved.")))
+    )
+  )
+
+(define (find-push-handler cmd)
+  (cond ((= cmd PUSH_MSG)     message-recieved )
+        (else                 #f               )
+        )
+  )
+
+(define (message-recieved msg)
+    (debug-message (string-append "Recieved push message " msg " !"))
+)
+
+; Establishes a new connection to the server and signs in the given user
 (define (new-connection host port username)
-  (let ([client (new client%
+  (let ([new-client (new client%
                      [host host]
                      [port port])])
+    (set! client new-client)
     (send client connect)
     (send client signin username)
     (let ([new-users (send client get-users-list)])
       (set-users! new-users))
     (send connect-dialog show #f)
-    (send mainwindow show #t)
-    (send mainwindow set-label
+    ; Start the listening thread
+    (set! listening-thread (thread (lambda ()
+                                     (listen-loop)    
+                                     )))
+    (send main-win show #t)
+    (send main-win set-label
           (string-append "Connected to "
                          host ":" (number->string port) " as " username))))
+
+(define (connection-closed)
+    (define msg ("The server has closed the connection."))
+    (message-box (t msg))
+    (debug-message msg) 
+    (send main-win show #f)
+    (send connect-dialog show #t)
+)
 
 ; =======================================
 ; Field validations.
@@ -85,13 +154,23 @@
 ; =======================================
 ; Main Window.
 ; =======================================
-(define frame (new frame% [label (t "Main Window")]))
-
+(define main-win  (new frame%
+                        [label APP_NAME]
+                        [width 600]
+                        [height 400]
+                        [min-width 200]
+                        [min-height 200]
+                        ))
+(define users-list-box (new list-box%
+                            [parent main-win]
+                            [choices (get-users)]
+                            [label "List of users"]
+                            ))
 ; =======================================
 ; Connection dialog.
 ; =======================================
 (define connect-dialog (new dialog%
-                            [parent frame]
+                            [parent main-win]
                             [label (t "Connect to server")]))
 
 ; Alignment

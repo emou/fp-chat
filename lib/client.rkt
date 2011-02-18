@@ -19,6 +19,7 @@
          (define (get-port) port)
          (define in null)
          (define out null)
+         (define push-handler null)
 
          (super-new)
 
@@ -36,26 +37,22 @@
                         (error-message message)
                         )
 
-         (define (command cmd msg)
-           (begin
-             (write-header cmd out)
-             (write-message msg out)
-             (debug-message "Request sent. Reading response...")
-             (let ([h (read-header in)]
-                   [m  (read-message in)])
-               (and (check-retcode h m) (values h m))
-               )
-             )
-           )
-
-         (define (check-retcode header msg)
-           (or (= (get-retcode header) RET_OK)
-               (raise-server-error (get-retcode header) msg)))
+         (define/public (command cmd msg)
+                        (begin
+                          (write-header cmd out)
+                          (write-message msg out)
+                          (debug-message "Request sent. Reading response...")
+                          (let ([h (read-header in)]
+                                [m  (read-message in)])
+                            (and (check-retcode h m) (values h m))
+                            )
+                          )
+                        )
 
          (define/public (get-users-list)
                         (let-values ([(h m) (command CMD_GET_USER_LIST "")])
                                     (split-message m)
-                          )
+                                    )
                         )
 
          (define/public (recieve-message)
@@ -70,6 +67,18 @@
          ; Send messages to the chat
          (define/public (send in out msg)
                         (command CMD_SEND msg))
+
+         ; The idea is that the user of the client class
+         ; can check for events on in
+         (define/public (get-input-port) in)
+
+         ; Same idea.
+         (define/public (get-output-port) out)
+
+         (define (check-retcode header msg)
+           (or (= (get-retcode header) RET_OK)
+               (raise-server-error (get-retcode header) msg)))
+
 
          )
   )

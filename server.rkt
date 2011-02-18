@@ -36,10 +36,9 @@
     (set-remove user-threads t)
     )
 
-  ; Broadcast the message
-  (define (add-message! msg)
-    (set-for-each user-threads (lambda (t) (thread-send t msg)))
-    )
+  ; Queue a broadcast command
+  (define (add-message! cmd msg)
+    (set-for-each user-threads (lambda (t) (thread-send t (cons cmd msg)))))
 
   (define (error-out errcode message out)
     (begin
@@ -158,20 +157,16 @@
       (let* ([msg-evt (thread-receive-evt)]
              [ready (sync msg-evt in)])
         (if (eq? ready msg-evt)
-          (handle-messages ready)
+          (handle-messages)
           (handle-input ready)
           )
         )
       )
 
     ; Send messages from other users to the client
-    (define (handle-messages evt)
-      (let ([msg (thread-try-receive)])
-        (and msg (begin
-                   (write-header PUSH_MSG out)
-                   (write-message msg out)
-                   )
-             )
+    (define (handle-messages)
+      (let ([instruction (thread-try-receive)])
+        (and instruction (command (cons instruction) (cdr instruction)))
         (communicate-loop)
         )
       )
