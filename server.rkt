@@ -4,7 +4,7 @@
 
 (require racket/date)
 (require racket/set)
-(require "chat-protocol.rkt")
+(require "lib/chat-protocol.rkt")
 (require "lib/logging.rkt")
 
 ; Constants

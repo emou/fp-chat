@@ -1,4 +1,5 @@
-#lang racket
 ; A GUI chat client
+; Run with gracket!
+#lang racket/gui
 
-(require "client.rkt")
+(require "lib/client.rkt")

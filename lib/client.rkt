@@ -5,7 +5,7 @@
   )
 
 (require "chat-protocol.rkt")
-(require "lib/logging.rkt")
+(require "logging.rkt")
 
 ; These should be configurable
 (define HOSTNAME "localhost")
