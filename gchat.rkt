@@ -36,7 +36,7 @@
 ; Add a message to the chatbox
 (define (add-message! msg)
     ; XXX: Ridicilous way to update the chatbox
-    (send chatbox set-value (string-append (send chatbox get-value) "\n" msg))
+    (send chatbox set-value (string-append "\n" (send chatbox get-value) msg))
 )
 
 ; The body of the worker thread.
