@@ -35,6 +35,7 @@
 
 ; Add a message to the chatbox
 (define (add-message! msg)
+    ; XXX: Ridicilous way to update the chatbox
     (send chatbox set-value (string-append (send chatbox get-value) "\n" msg))
 )
 
