@@ -1,0 +1,11 @@
+A simple chat application written in Racket as an university project.
+
+* Design is self-invented, hence broken :)
+* When the server wants to broadcast messages, it wakes
+each thread (one thread per user), which then sends the message
+to the respective client. This is BAD / inefficient.
+* Protocol is broken (again self-invented).
+* GUI uses too much protocol.
+* etc.
+
+This code is provided as is in the public domain.
