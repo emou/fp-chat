@@ -18,7 +18,7 @@
 
   (define users (make-hash '()))     ; Map users to sockets: easy check if user is signed in
   (define user-threads (set))        ; A set of user threads so the server can broadcast messages to them
-                                     ; (yes, racket has message-passing. VERY COOL.)
+  ; (yes, racket has message-passing. VERY COOL.)
 
   (define (register-user! username in out)
     (hash-set! users username (cons in out))
@@ -33,7 +33,7 @@
     (set! user-threads (set-add user-threads t))
     )
   (define (unregister-thread! t)
-    (set-remove user-threads t)
+    (set! user-threads (set-remove user-threads t))
     )
 
   ; Queue a broadcast command
@@ -133,7 +133,7 @@
           )
         )
       )
-    
+
     ; Command that sends the list of currently logged in users, separated by newlines, to the client
     (define (userlist msg in out)
       (values RET_OK (string-join (hash-map users (lambda (u _) u)) (string SEP)) #f)
@@ -149,12 +149,16 @@
 
     ; Broadcasting
     (define (push-message msg in out)
-        (values PUSH_MSG msg #f)
+      (values PUSH_MSG msg #f)
       )
 
     (define (push-joined msg in out)
-        (values PUSH_JOINED msg #f)
-    )
+      (values PUSH_JOINED msg #f)
+      )
+
+    (define (push-left msg in out)
+      (values PUSH_LEFT msg #f)
+      )
 
     ; Command dispatcher
     (define (find-command cmd)
@@ -164,6 +168,7 @@
             ((= cmd CMD_GET_USER_LIST)     userlist    )
             ((= cmd PUSH_MSG)              push-message)
             ((= cmd PUSH_JOINED)           push-joined )
+            ((= cmd PUSH_LEFT)             push-left   )
             (else                          #f          )
             )
       )
@@ -187,12 +192,14 @@
       (let ([instruction (thread-try-receive)])
         ; Send push only if user is logged in
         (and (get-user) instruction (begin
-                           (let-values ([(h m post-action) ((find-command (car instruction)) (cdr instruction) in out)])
-                                       (write-header h out)
-                                       (write-message m out)
-                                       (and post-action (post-action))
-                                       )
-                           )
+                                      (let ([worker (find-command (car instruction))])
+                                        (let-values ([(h m post-action) (worker (cdr instruction) in out)])
+                                                    (write-header h out)
+                                                    (write-message m out)
+                                                    (and post-action (post-action))
+                                                    )
+                                        )
+                                      )
              )
         (communicate-loop)
         )
@@ -217,8 +224,14 @@
         )
       )
 
+    (define (go-out!)
+      (unregister-thread! (current-thread))
+      (unregister-user! (get-user))
+      )
+
     ; Go!
-    (communicate-loop)
+    (with-handlers ([(lambda (e) #t) (lambda (e) (go-out!))])
+                   (communicate-loop))
     (add-message! PUSH_LEFT (get-user))
 
     )
@@ -227,7 +240,6 @@
     (handle-request listener)
     (mainloop)
     )
-
   (mainloop)
 
   )

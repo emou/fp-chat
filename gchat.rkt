@@ -25,7 +25,18 @@
   (send users-list-box set users)
   )
 
+; Ask the server for the user list and refresh it
+(define (refresh-users!)
+    (let ([new-users (send client get-users-list)])
+      (set-users! new-users))
+)
+
 (define (get-users) users)
+
+; Add a message to the chatbox
+(define (add-message! msg)
+    (send chatbox set-value (string-append (send chatbox get-value) "\n" msg))
+)
 
 ; The body of the worker thread.
 ; XXX: This is similar as on the server side. Extract it somewhere!?
@@ -79,6 +90,7 @@
       (debug-message (string-append "Unknown push command "
                                     (number->string cmd) " with message "
                                     msg " recieved.")))
+      (refresh-users!) ; XXX: We don't actually need to refresh it on  every push.
     )
   )
 
@@ -91,15 +103,20 @@
   )
 
 (define (message-recieved cmd msg)
+    (add-message! msg)
     (debug-message (string-append "Recieved push message '" msg "'!"))
 )
 
 (define (user-joined cmd username)
-    (debug-message (string-append "User " username " joined!"))
+    (let ([msg (string-append "User " username " joined.")])
+    (add-message! msg)
+    (debug-message msg))
 )
 
 (define (user-left cmd username)
-    (debug-message (string-append "User " username " left!"))
+    (let ([msg (string-append "User " username " left.")])
+    (add-message! msg)
+    (debug-message msg))
 )
 
 ; Establishes a new connection to the server and signs in the given user
@@ -112,8 +129,7 @@
     (set! client new-client)
     (send client connect)
     (send client signin username)
-    (let ([new-users (send client get-users-list)])
-      (set-users! new-users))
+    (refresh-users!)
     (send connect-dialog show #f)
     ; Start the listening thread
     (set! listening-thread (thread (lambda ()
@@ -192,6 +208,11 @@
                             [label "List of users"]
                             ))
 
+(define chatbox (new text-field%
+                     [parent main-win]
+                     [label "Conversation"]
+                     [min-height 300]
+                     [enabled #f]))
 (define textbox (new text-field%
                      [parent main-win]
                      [label "Send a message:"]
