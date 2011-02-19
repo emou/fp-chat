@@ -30,7 +30,7 @@
     (hash-has-key? users username) 
     )
   (define (register-thread! t)
-    (set-add user-threads t)
+    (set! user-threads (set-add user-threads t))
     )
   (define (unregister-thread! t)
     (set-remove user-threads t)
@@ -86,13 +86,14 @@
             (msg (read-message in)) ; Don't move this down!
             )
         (if worker
-          (let-values ([(resp-hdr resp-msg) (worker msg in out)])
+          (let-values ([(resp-hdr resp-msg post-action) (worker msg in out)])
                       (debug-message "Writing header...")
                       (write-header resp-hdr out)
                       (debug-message "Header written. Writing message...")
                       (write-message resp-msg out)
                       (debug-message "Message written.")
                       (debug-message (string-append "Server response: " resp-msg))
+                      (and post-action (post-action))
                       )
           (error-out ERR_UNKNOWN_CMD "Invalid command found in request. Ignoring." out)
           )
@@ -101,17 +102,20 @@
 
     ; Sign in command
     (define (signin username in out)
+      (define (post-action)
+        (add-message! PUSH_JOINED username)
+        )
       (info-message (string-append "Trying to sign in user " username "."))
       ; Not thread-safe...
       (if (hash-has-key? users username)
-        (values ERR_USER_TAKEN (string-append "Username " username " is already taken."))
+        (values ERR_USER_TAKEN (string-append "Username " username " is already taken.") #f)
         (begin
           (register-user! username in out)
           (set-user! username)
           (debug-message (string-append "Setting user to " (get-user) "."))
           (debug-message (string-append "User " username " signed in succesfully."))
           (debug-message (string-append "Currently " (number->string (hash-count users)) " users are logged in."))
-          (values RET_OK "Signin successful.")
+          (values RET_OK "Signin successful." post-action)
           )
         )
       )
@@ -120,31 +124,37 @@
     (define (signout username in out)
       (info-message (string-append "Trying to sign out user " username "."))
       (if (not (hash-has-key? users username))
-        (values ERR_UNKNOWN_USER (string-append username " is not signed in."))
+        (values ERR_UNKNOWN_USER (string-append username " is not signed in.") #f)
         (begin
           (unregister-user! username)
           (info-message (string-append "User " username " signed out succesfully."))
           (info-message (string-append "Currently " (number->string (hash-count users)) " users are logged in."))
-          (values RET_OK "Signout successful.")
+          (values RET_OK "Signout successful." #f)
           )
         )
       )
     
     ; Command that sends the list of currently logged in users, separated by newlines, to the client
     (define (userlist msg in out)
-      (values RET_OK (string-join (hash-map users (lambda (u _) u)) ":"))
+      (values RET_OK (string-join (hash-map users (lambda (u _) u)) (string SEP)) #f)
       )
 
     ; Command that queues a message for sending. This is the most important one.
     (define (send msg in out)
-      (add-message! PUSH_MSG (string-append "User " (get-user) " says: " msg))
-      (values RET_OK "Message sent (but not delivered yet!)")
+      (define (post-action)
+        (add-message! PUSH_MSG (string-append "User " (get-user) " says: " msg))
+        )
+      (values RET_OK "Message queued for dispatching." post-action)
       )
 
+    ; Broadcasting
     (define (push-message msg in out)
-        (values PUSH_MSG msg)
+        (values PUSH_MSG msg #f)
       )
 
+    (define (push-joined msg in out)
+        (values PUSH_JOINED msg #f)
+    )
 
     ; Command dispatcher
     (define (find-command cmd)
@@ -153,28 +163,37 @@
             ((= cmd CMD_SEND)              send        )
             ((= cmd CMD_GET_USER_LIST)     userlist    )
             ((= cmd PUSH_MSG)              push-message)
+            ((= cmd PUSH_JOINED)           push-joined )
             (else                          #f          )
             )
       )
 
     ; Loop till connection is closed
     (define (communicate-loop)
-      (debug-message "Starting communicate-loop")
+      (debug-message "Looping in communicate-loop")
       ; Wait for messages or for client input
       (let* ([msg-evt (thread-receive-evt)]
              [ready (sync msg-evt in)])
         (if (eq? ready msg-evt)
-          (handle-messages)
+          (handle-push)
           (handle-input ready)
           )
         )
       )
 
     ; Send messages from other users to the client
-    (define (handle-messages)
-      (debug-message (string-append "Broadcasting message..."))
+    (define (handle-push)
+      (debug-message (string-append "Pushing..."))
       (let ([instruction (thread-try-receive)])
-        (and instruction (command (car instruction) (cdr instruction)))
+        ; Send push only if user is logged in
+        (and (get-user) instruction (begin
+                           (let-values ([(h m post-action) ((find-command (car instruction)) (cdr instruction) in out)])
+                                       (write-header h out)
+                                       (write-message m out)
+                                       (and post-action (post-action))
+                                       )
+                           )
+             )
         (communicate-loop)
         )
       )

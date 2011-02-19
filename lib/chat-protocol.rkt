@@ -17,6 +17,7 @@
          ERR_UNKNOWN_USER
          RET_OK
          PUSH_MSG
+         PUSH_JOINED
          SEP
          make-header
          get-header
@@ -28,7 +29,8 @@
          split-message
          write-message
          write-header
-         version-match?)
+         version-match?
+         is-push?)
 
 (define DEFAULT_PORT 8081)
 (define VERSION 1)          ; Protocol version used in the server
@@ -43,12 +45,15 @@
 (define CMD_SIGNIN  0)      ; Start a new session
 (define CMD_SIGNOUT 1)      ; Quit the chat
 (define CMD_SEND    2)      ; Send a message
-(define CMD_GET_USER_LIST    3)      ; Send a message
+(define CMD_GET_USER_LIST    3)      ; Send the user list to the client
+(define PUSH_MSG 254)         ; [client-side] The server wants to send us a message
+                              ; [server-side] We need to send the client a message
+(define PUSH_JOINED 253)      ; A new user signed in
+(define (is-push? code) (> code 200)) ; PUSH codes are above 200. This is important
 
 ; Server return codes from the server to the client
 ; On error, message bodies are empty
 (define RET_OK 0)           ; Everything went fine
-(define PUSH_MSG 1)         ; The server wants to send us a message
 (define ERR_USER_TAKEN 2)   ; Nickname was already taken
 (define ERR_NO_ROOM 3)      ; Too many clients
 (define ERR_PROTO_VERSION 4); Invalid protocol version
@@ -57,6 +62,7 @@
 
 (define EOM #\return)           ; \r means end of message.
 (define SEP #\:)                ; A separator used in messages. Should not be allowed in user input.
+
 (define (split-message msg)
   (regexp-split (regexp (string SEP)) msg))
 

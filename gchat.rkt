@@ -58,6 +58,7 @@
 
 ; Handle server messages
 (define (handle-input in)
+  (debug-message "Hm, server wants to tell us something...")
   (let ([header (get-header in)])
     (cond
       [(eof-object? header)
@@ -83,19 +84,26 @@
 
 (define (find-push-handler cmd)
   (cond ((= cmd PUSH_MSG)     message-recieved )
+        ((= cmd PUSH_JOINED)  user-joined      )
         (else                 #f               )
         )
   )
 
-(define (message-recieved msg)
-    (debug-message (string-append "Recieved push message " msg " !"))
+(define (message-recieved cmd msg)
+    (debug-message (string-append "Recieved push message '" msg "'!"))
+)
+
+(define (user-joined cmd username)
+    (debug-message (string-append "User " username " joined!"))
 )
 
 ; Establishes a new connection to the server and signs in the given user
 (define (new-connection host port username)
   (let ([new-client (new client%
                      [host host]
-                     [port port])])
+                     [port port]
+                     [push-handler handle-push]
+                     )])
     (set! client new-client)
     (send client connect)
     (send client signin username)

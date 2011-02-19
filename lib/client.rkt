@@ -14,12 +14,12 @@
 
 (define client%
   (class object%
-         (init host port)
+         (init host port push-handler)
          (define (get-host) host)
          (define (get-port) port)
+         (define (get-push-handler) push-handler)
          (define in null)
          (define out null)
-         (define push-handler null)
 
          (super-new)
 
@@ -42,10 +42,7 @@
                           (write-header cmd out)
                           (write-message msg out)
                           (debug-message "Request sent. Reading response...")
-                          (let ([h (read-header in)]
-                                [m  (read-message in)])
-                            (and (check-retcode h m) (values h m))
-                            )
+                          (check-retcode in)
                           )
                         )
 
@@ -69,16 +66,25 @@
                         (command CMD_SEND msg))
 
          ; The idea is that the user of the client class
-         ; can check for events on in
+         ; can check for events on `in`
          (define/public (get-input-port) in)
 
          ; Same idea.
          (define/public (get-output-port) out)
 
-         (define (check-retcode header msg)
-           (or (= (get-retcode header) RET_OK)
-               (raise-server-error (get-retcode header) msg)))
+         (define (check-retcode in)
+           (let* ([header (read-header in)]
+                  [msg  (read-message in)]
+                  [rc (get-retcode header)])
+             (cond [(is-push? rc) ; We received a push. So get it before sending our crud.
+                     (begin
+                       ((get-push-handler) header msg)
+                       (check-retcode in))]
 
+                    [(= (get-retcode header) RET_OK) (values header msg)]
+                    [else
+                      (raise-server-error (get-retcode header) msg)]))
+           )
 
          )
   )
