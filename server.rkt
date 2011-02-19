@@ -219,6 +219,7 @@
 
     ; Go!
     (communicate-loop)
+    (add-message! PUSH_LEFT (get-user))
 
     )
 

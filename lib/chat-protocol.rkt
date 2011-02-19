@@ -18,6 +18,7 @@
          RET_OK
          PUSH_MSG
          PUSH_JOINED
+         PUSH_LEFT
          SEP
          make-header
          get-header
@@ -49,6 +50,7 @@
 (define PUSH_MSG 254)         ; [client-side] The server wants to send us a message
                               ; [server-side] We need to send the client a message
 (define PUSH_JOINED 253)      ; A new user signed in
+(define PUSH_LEFT   252)      ; A new user signed in
 (define (is-push? code) (> code 200)) ; PUSH codes are above 200. This is important
 
 ; Server return codes from the server to the client

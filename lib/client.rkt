@@ -78,12 +78,12 @@
                   [rc (get-retcode header)])
              (cond [(is-push? rc) ; We received a push. So get it before sending our crud.
                      (begin
-                       ((get-push-handler) header msg)
+                       ((get-push-handler) rc msg)
                        (check-retcode in))]
 
-                    [(= (get-retcode header) RET_OK) (values header msg)]
+                    [(= rc RET_OK) (values header msg)]
                     [else
-                      (raise-server-error (get-retcode header) msg)]))
+                      (raise-server-error rc msg)]))
            )
 
          )

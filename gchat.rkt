@@ -85,6 +85,7 @@
 (define (find-push-handler cmd)
   (cond ((= cmd PUSH_MSG)     message-recieved )
         ((= cmd PUSH_JOINED)  user-joined      )
+        ((= cmd PUSH_LEFT)    user-left        )
         (else                 #f               )
         )
   )
@@ -95,6 +96,10 @@
 
 (define (user-joined cmd username)
     (debug-message (string-append "User " username " joined!"))
+)
+
+(define (user-left cmd username)
+    (debug-message (string-append "User " username " left!"))
 )
 
 ; Establishes a new connection to the server and signs in the given user
